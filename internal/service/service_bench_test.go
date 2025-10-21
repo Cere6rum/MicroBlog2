@@ -8,6 +8,7 @@ import (
 	"github.com/Cere6rum/MicroBlog2/internal/queue"
 )
 
+// BenchmarkRegisterUser бенчмарк для регистрации пользователей
 func BenchmarkRegisterUser(b *testing.B) {
 	log, err := logger.NewLogger("bench.log")
 	if err != nil {
@@ -30,6 +31,7 @@ func BenchmarkRegisterUser(b *testing.B) {
 	}
 }
 
+// BenchmarkCreatePost бенчмарк для создания постов
 func BenchmarkCreatePost(b *testing.B) {
 	log, err := logger.NewLogger("bench.log")
 	if err != nil {
@@ -44,6 +46,7 @@ func BenchmarkCreatePost(b *testing.B) {
 	likeQueue := queue.NewLikeQueue(100, 2)
 	service := NewMicroBlogService(log, likeQueue)
 
+	// Регистрируем одного пользователя
 	if _, err := service.RegisterUser("benchuser"); err != nil {
 		b.Fatalf("Ошибка регистрации пользователя: %v", err)
 	}
@@ -56,6 +59,7 @@ func BenchmarkCreatePost(b *testing.B) {
 	}
 }
 
+// BenchmarkGetAllPosts бенчмарк для получения всех постов
 func BenchmarkGetAllPosts(b *testing.B) {
 	log, err := logger.NewLogger("bench.log")
 	if err != nil {
@@ -70,6 +74,7 @@ func BenchmarkGetAllPosts(b *testing.B) {
 	likeQueue := queue.NewLikeQueue(100, 2)
 	service := NewMicroBlogService(log, likeQueue)
 
+	// Создаем 100 постов
 	if _, err := service.RegisterUser("benchuser"); err != nil {
 		b.Fatalf("Ошибка регистрации пользователя: %v", err)
 	}
@@ -85,6 +90,7 @@ func BenchmarkGetAllPosts(b *testing.B) {
 	}
 }
 
+// BenchmarkLikePost бенчмарк для лайков
 func BenchmarkLikePost(b *testing.B) {
 	log, err := logger.NewLogger("bench.log")
 	if err != nil {
@@ -101,6 +107,7 @@ func BenchmarkLikePost(b *testing.B) {
 	likeQueue.Start(service.ProcessLikeEvent)
 	defer likeQueue.Stop()
 
+	// Создаем пользователя и пост
 	if _, err := service.RegisterUser("author"); err != nil {
 		b.Fatalf("Ошибка регистрации пользователя author: %v", err)
 	}
