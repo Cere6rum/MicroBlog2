@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,7 +24,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Ошибка создания логгера: %v", err)
 	}
-	defer appLogger.Close()
+	defer func() {
+		if appLogger != nil {
+			if err := appLogger.Close(); err != nil {
+				log.Printf("ошибка закрытия логгера: %v", err)
+			}
+		}
+	}()
 
 	appLogger.Info("=== Запуск MicroBlog v1 ===")
 
@@ -68,7 +75,10 @@ func main() {
 		appLogger.Info("HTTP-сервер запущен на :8080")
 		fmt.Println("MicroBlog v1 запущен на http://localhost:8080")
 		fmt.Println("Профилирование доступно на http://localhost:6060/debug/pprof/")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server error: %v", err)
+		}
+		{
 			appLogger.Error(fmt.Sprintf("Ошибка запуска сервера: %v", err))
 			log.Fatalf("Ошибка запуска сервера: %v", err)
 		}

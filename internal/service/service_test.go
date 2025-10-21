@@ -14,7 +14,11 @@ func TestRegisterUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Ошибка создания логгера: %v", err)
 	}
-	defer log.Close()
+	defer func() {
+		if err := log.Close(); err != nil {
+			t.Errorf("ошибка закрытия логгера: %v", err)
+		}
+	}()
 
 	// Создаем очередь лайков
 	likeQueue := queue.NewLikeQueue(10, 1)
@@ -50,12 +54,22 @@ func TestRegisterUser(t *testing.T) {
 // TestCreatePost тестирует создание поста
 func TestCreatePost(t *testing.T) {
 	log, _ := logger.NewLogger("test.log")
-	defer log.Close()
+	defer func() {
+		if err := log.Close(); err != nil {
+			t.Errorf("Ошибка закрытия логгера: %v", err)
+		}
+	}()
 	likeQueue := queue.NewLikeQueue(10, 1)
 	service := NewMicroBlogService(log, likeQueue)
 
 	// Регистрируем пользователя
-	service.RegisterUser("author")
+	user, err := service.RegisterUser("author")
+	if err != nil {
+		t.Fatalf("Ошибка регистрации пользователя: %v", err)
+	}
+	if user == nil {
+		t.Fatal("Ожидали пользователя после регистрации, получили nil")
+	}
 
 	// Тест 1: создание поста
 	post, err := service.CreatePost("author", "Мой первый пост")
@@ -85,14 +99,38 @@ func TestCreatePost(t *testing.T) {
 // TestGetAllPosts тестирует получение всех постов
 func TestGetAllPosts(t *testing.T) {
 	log, _ := logger.NewLogger("test.log")
-	defer log.Close()
+	defer func() {
+		if err := log.Close(); err != nil {
+			t.Errorf("Ошибка закрытия логгера: %v", err)
+		}
+	}()
 	likeQueue := queue.NewLikeQueue(10, 1)
 	service := NewMicroBlogService(log, likeQueue)
 
 	// Регистрируем пользователя и создаем посты
-	service.RegisterUser("user1")
-	service.CreatePost("user1", "Пост 1")
-	service.CreatePost("user1", "Пост 2")
+	user, err := service.RegisterUser("user1")
+	if err != nil {
+		t.Fatalf("Ошибка регистрации пользователя: %v", err)
+	}
+	if user == nil {
+		t.Fatalf("Ожидали пользователя после регистрации, получили nil")
+	}
+
+	post1, err := service.CreatePost("user1", "Пост 1")
+	if err != nil {
+		t.Fatalf("Ошибка создания первого поста: %v", err)
+	}
+	if post1 == nil {
+		t.Fatalf("Ожидали первый пост, получили nil")
+	}
+
+	post2, err := service.CreatePost("user1", "Пост 2")
+	if err != nil {
+		t.Fatalf("Ошибка создания второго поста: %v", err)
+	}
+	if post2 == nil {
+		t.Fatalf("Ожидали второй пост, получили nil")
+	}
 
 	// Получаем все посты
 	posts := service.GetAllPosts()
@@ -104,7 +142,11 @@ func TestGetAllPosts(t *testing.T) {
 // TestLikePost тестирует добавление лайка
 func TestLikePost(t *testing.T) {
 	log, _ := logger.NewLogger("test.log")
-	defer log.Close()
+	defer func() {
+		if err := log.Close(); err != nil {
+			t.Errorf("Ошибка закрытия логгера: %v", err)
+		}
+	}()
 	likeQueue := queue.NewLikeQueue(10, 1)
 	service := NewMicroBlogService(log, likeQueue)
 
@@ -113,12 +155,31 @@ func TestLikePost(t *testing.T) {
 	defer likeQueue.Stop()
 
 	// Регистрируем пользователей и создаем пост
-	service.RegisterUser("author")
-	service.RegisterUser("liker")
-	service.CreatePost("author", "Тестовый пост")
+	user1, err := service.RegisterUser("author")
+	if err != nil {
+		t.Fatalf("Ошибка регистрации пользователя author: %v", err)
+	}
+	if user1 == nil {
+		t.Fatal("Ожидали пользователя author после регистрации, получили nil")
+	}
+
+	user2, err := service.RegisterUser("liker")
+	if err != nil {
+		t.Fatalf("Ошибка регистрации пользователя liker: %v", err)
+	}
+	if user2 == nil {
+		t.Fatal("Ожидали пользователя liker после регистрации, получили nil")
+	}
+	post, err := service.CreatePost("author", "Тестовый пост")
+	if err != nil {
+		t.Fatalf("Ошибка создания поста: %v", err)
+	}
+	if post == nil {
+		t.Fatal("Ожидали пост после создания, получили nil")
+	}
 
 	// Тест 1: успешный лайк
-	err := service.LikePost(1, "liker")
+	err = service.LikePost(1, "liker")
 	if err != nil {
 		t.Errorf("Ошибка при лайке поста: %v", err)
 	}
