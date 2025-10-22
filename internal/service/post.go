@@ -15,13 +15,11 @@ func (s *MicroBlogService) CreatePost(username, content string) (*models.Post, e
 	}
 
 	// Проверяем существование пользователя
-	userInterface, exists := s.userStorage.Get(username)
-	if !exists {
-		s.logger.Error(fmt.Sprintf("Пользователь %s не найден", username))
+	user, err := s.userRepo.GetByUsername(username)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("Пользователь %s не найден: %v", username, err))
 		return nil, errors.New("пользователь не найден")
 	}
-
-	user := userInterface.(*models.User)
 
 	// Создаем новый пост
 	postID := int(s.postIDCounter.Increment())
@@ -33,39 +31,35 @@ func (s *MicroBlogService) CreatePost(username, content string) (*models.Post, e
 		Likes:    make([]string, 0),
 	}
 
-	// Добавляем в хранилище
-	s.postStorage.Add(post)
+	// Добавляем в репозиторий
+	if err := s.postRepo.Create(post); err != nil {
+		s.logger.Error(fmt.Sprintf("Ошибка при создании поста: %v", err))
+		return nil, err
+	}
 	s.logger.Info(fmt.Sprintf("Создан новый пост ID: %d от пользователя: %s", postID, username))
 
 	return post, nil
 }
 
 // GetAllPosts возвращает все посты
-func (s *MicroBlogService) GetAllPosts() []*models.Post {
-	postsInterface := s.postStorage.GetAll()
-	posts := make([]*models.Post, 0, len(postsInterface))
-
-	for _, p := range postsInterface {
-		if post, ok := p.(*models.Post); ok {
-			posts = append(posts, post)
-		}
-	}
-
+func (s *MicroBlogService) GetAllPosts() ([]*models.Post, error) {
+	posts := s.postRepo.List()
 	s.logger.Debug(fmt.Sprintf("Запрошены все посты, количество: %d", len(posts)))
-	return posts
+	return posts, nil
 }
 
 // LikePost добавляет лайк к посту (асинхронно через очередь)
 func (s *MicroBlogService) LikePost(postID int, username string) error {
 	// Проверяем существование пользователя
-	if !s.userStorage.Exists(username) {
+	if !s.userRepo.Exists(username) {
 		s.logger.Error(fmt.Sprintf("Пользователь %s не найден для лайка", username))
 		return errors.New("пользователь не найден")
 	}
 
 	// Проверяем существование поста
-	if postID <= 0 || postID > s.postStorage.Len() {
-		s.logger.Error(fmt.Sprintf("Пост с ID %d не найден", postID))
+	_, err := s.postRepo.GetByID(postID)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("Пост с ID %d не найден: %v", postID, err))
 		return errors.New("пост не найден")
 	}
 
@@ -82,14 +76,11 @@ func (s *MicroBlogService) LikePost(postID int, username string) error {
 
 // ProcessLikeEvent обрабатывает событие лайка (вызывается из очереди)
 func (s *MicroBlogService) ProcessLikeEvent(event models.LikeEvent) error {
-	// Получаем пост
-	postInterface, exists := s.postStorage.GetByIndex(event.PostID - 1)
-	if !exists {
-		s.logger.Error(fmt.Sprintf("Пост с ID %d не найден при обработке лайка", event.PostID))
+	post, err := s.postRepo.GetByID(event.PostID)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("Пост с ID %d не найден при обработке лайка: %v", event.PostID, err))
 		return errors.New("пост не найден")
 	}
-
-	post := postInterface.(*models.Post)
 
 	// Проверяем, не лайкал ли уже этот пользователь
 	for _, liker := range post.Likes {
@@ -99,9 +90,13 @@ func (s *MicroBlogService) ProcessLikeEvent(event models.LikeEvent) error {
 		}
 	}
 
-	// Добавляем лайк
+	// Добавляем лайк и обновляем в репозитории
 	post.Likes = append(post.Likes, event.Username)
-	s.logger.Info(fmt.Sprintf("Лайк от %s к посту %d успешно обработан", event.Username, event.PostID))
+	if err := s.postRepo.Update(post); err != nil {
+		s.logger.Error(fmt.Sprintf("Ошибка при обновлении поста после лайка: %v", err))
+		return err
+	}
 
+	s.logger.Info(fmt.Sprintf("Лайк от %s к посту %d успешно обработан", event.Username, event.PostID))
 	return nil
 }

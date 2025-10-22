@@ -86,7 +86,9 @@ func BenchmarkGetAllPosts(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.GetAllPosts()
+		if _, err := service.GetAllPosts(); err != nil {
+			b.Fatalf("Ошибка получения постов: %v", err)
+		}
 	}
 }
 
@@ -114,13 +116,15 @@ func BenchmarkLikePost(b *testing.B) {
 	if _, err := service.RegisterUser("liker"); err != nil {
 		b.Fatalf("Ошибка регистрации пользователя liker: %v", err)
 	}
-	if _, err := service.CreatePost("author", "Бенчмарк пост"); err != nil {
+	post, err := service.CreatePost("author", "Бенчмарк пост")
+	if err != nil {
 		b.Fatalf("Ошибка создания поста: %v", err)
 	}
+	postID := post.ID
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := service.LikePost(1, "liker"); err != nil {
+		if err := service.LikePost(postID, "liker"); err != nil {
 			b.Fatalf("Ошибка лайка поста: %v", err)
 		}
 	}
