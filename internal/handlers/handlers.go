@@ -73,7 +73,7 @@ func (h *MicroBlogHandler) PostsHandler(w http.ResponseWriter, r *http.Request) 
 
 // GetAllPosts обрабатывает GET /posts
 func (h *MicroBlogHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
-	posts := h.service.GetAllPosts()
+	posts, _ := h.service.GetAllPosts()
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(posts); err != nil {
