@@ -1,6 +1,7 @@
 package syncutils
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -111,4 +112,15 @@ func (c *AtomicCounter) Get() int64 {
 // Set устанавливает новое значение
 func (c *AtomicCounter) Set(val int64) {
 	atomic.StoreInt64(&c.value, val)
+}
+
+// SetByIndex заменяет пост по индексу, возвращает ошибку если индекс неверен
+func (s *SafePostStorage) SetByIndex(index int, post interface{}) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if index < 0 || index >= len(s.posts) {
+		return fmt.Errorf("index out of range")
+	}
+	s.posts[index] = post
+	return nil
 }

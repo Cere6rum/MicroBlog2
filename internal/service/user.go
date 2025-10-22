@@ -15,7 +15,7 @@ func (s *MicroBlogService) RegisterUser(username string) (*models.User, error) {
 	}
 
 	// Проверяем, существует ли пользователь
-	if s.userStorage.Exists(username) {
+	if s.userRepo.Exists(username) {
 		s.logger.Error(fmt.Sprintf("Пользователь %s уже существует", username))
 		return nil, errors.New("пользователь уже существует")
 	}
@@ -27,8 +27,12 @@ func (s *MicroBlogService) RegisterUser(username string) (*models.User, error) {
 		Username: username,
 	}
 
-	// Сохраняем в хранилище
-	s.userStorage.Set(username, user)
+	// Сохраняем в репозитории
+	if err := s.userRepo.Create(user); err != nil {
+		s.logger.Error(fmt.Sprintf("Ошибка при создании пользователя: %v", err))
+		return nil, err
+	}
+
 	s.logger.Info(fmt.Sprintf("Зарегистрирован новый пользователь: %s (ID: %d)", username, userID))
 
 	return user, nil
@@ -36,9 +40,5 @@ func (s *MicroBlogService) RegisterUser(username string) (*models.User, error) {
 
 // GetUserByUsername возвращает пользователя по имени
 func (s *MicroBlogService) GetUserByUsername(username string) (*models.User, error) {
-	userInterface, exists := s.userStorage.Get(username)
-	if !exists {
-		return nil, errors.New("пользователь не найден")
-	}
-	return userInterface.(*models.User), nil
+	return s.userRepo.GetByUsername(username)
 }

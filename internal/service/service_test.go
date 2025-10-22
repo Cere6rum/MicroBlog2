@@ -133,7 +133,10 @@ func TestGetAllPosts(t *testing.T) {
 	}
 
 	// Получаем все посты
-	posts := service.GetAllPosts()
+	posts, err := service.GetAllPosts()
+	if err != nil {
+		t.Fatalf("Ожидали успешное получение постов, получили ошибку: %v", err)
+	}
 	if len(posts) != 2 {
 		t.Errorf("Ожидали 2 поста, получили %d", len(posts))
 	}
@@ -170,6 +173,7 @@ func TestLikePost(t *testing.T) {
 	if user2 == nil {
 		t.Fatal("Ожидали пользователя liker после регистрации, получили nil")
 	}
+
 	post, err := service.CreatePost("author", "Тестовый пост")
 	if err != nil {
 		t.Fatalf("Ошибка создания поста: %v", err)
@@ -177,9 +181,10 @@ func TestLikePost(t *testing.T) {
 	if post == nil {
 		t.Fatal("Ожидали пост после создания, получили nil")
 	}
+	postID := post.ID
 
 	// Тест 1: успешный лайк
-	err = service.LikePost(1, "liker")
+	err = service.LikePost(postID, "liker")
 	if err != nil {
 		t.Errorf("Ошибка при лайке поста: %v", err)
 	}
@@ -191,7 +196,7 @@ func TestLikePost(t *testing.T) {
 	}
 
 	// Тест 3: лайк несуществующим пользователем
-	err = service.LikePost(1, "nonexistent")
+	err = service.LikePost(postID, "nonexistent")
 	if err == nil {
 		t.Error("Ожидали ошибку при лайке несуществующим пользователем")
 	}
